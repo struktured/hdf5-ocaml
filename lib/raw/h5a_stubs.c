@@ -211,6 +211,44 @@ value hdf5_h5a_read_int64(value attr_v, value mem_type_v)
   CAMLreturn(caml_copy_int64(buf));
 }
 
+
+value hdf5_h5a_read_string(value attr_v)
+{
+    CAMLparam1(attr_v);
+    CAMLlocal1(ret_v);
+    hid_t type, ftype, att;
+
+    herr_t ret;
+    char * string_attr;
+    H5T_class_t type_class;
+    size_t size;
+    htri_t size_var;
+
+#ifdef EIP
+    /* Create a datatype to refer to. */
+    type = H5Tcopy (H5T_C_S1);
+
+    ret = H5Tset_size (type, H5T_VARIABLE);
+#endif
+
+    att = Hid_val(attr_v);
+
+    ftype = H5Aget_type(att);
+
+    type_class = H5Tget_class (ftype);
+
+    size = H5Tget_size(ftype);
+
+    if((size_var = H5Tis_variable_str(ftype)) == 1)
+      ;
+
+    type = H5Tget_native_type(ftype, H5T_DIR_ASCEND);
+    ret = H5Aread(att, type, &string_attr);
+    ret_v = caml_copy_string(string_attr);
+    free(string_attr);
+    CAMLreturn(ret_v);
+}
+
 void hdf5_h5a_read_string_array(value attr_v, value mem_type_v, value buf_v)
 {
   CAMLparam3(attr_v, mem_type_v, buf_v);

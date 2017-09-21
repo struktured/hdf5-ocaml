@@ -13,7 +13,7 @@ end
 external create : Hid.t -> string -> Hid.t -> ?acpl:Hid.t -> ?aapl:Hid.t -> Hid.t -> Hid.t
   = "hdf5_h5a_create_bytecode" "hdf5_h5a_create"
 external create_by_name : Hid.t -> string -> string -> Hid.t -> ?acpl:Hid.t
-  -> ?aapl:Hid.t -> ?lapl:Hid.t -> Hid.t -> Hid.t
+ -> ?aapl:Hid.t -> ?lapl:Hid.t -> Hid.t -> Hid.t
   = "hdf5_h5a_create_by_name_bytecode" "hdf5_h5a_create_by_name"
 external open_ : Hid.t -> ?aapl:Hid.t -> string -> Hid.t = "hdf5_h5a_open"
 external open_by_name : Hid.t -> ?aapl:Hid.t -> ?lapl:Hid.t -> string -> string -> Hid.t
@@ -38,7 +38,7 @@ external read_bigarray : Hid.t -> Hid.t -> _ Bigarray.Genarray.t -> unit
   = "hdf5_h5a_read_bigarray"
 external read_float : Hid.t -> Hid.t -> float = "hdf5_h5a_read_float"
 external read_int64 : Hid.t -> Hid.t -> int64 = "hdf5_h5a_read_int64"
-external read_string : Hid.t -> Hid.t -> string -> unit = "hdf5_h5a_read"
+external read_string : Hid.t -> string = "hdf5_h5a_read_string"
 external read_string_array : Hid.t -> Hid.t -> string array -> unit
   = "hdf5_h5a_read_string_array"
 external close : Hid.t -> unit = "hdf5_h5a_close"

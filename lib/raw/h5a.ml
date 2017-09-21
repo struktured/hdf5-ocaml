@@ -34,7 +34,7 @@ external read_bigarray : Hid.t -> Hid.t -> _ Bigarray.Genarray.t -> unit
   = "hdf5_h5a_read_bigarray"
 external read_float : Hid.t -> Hid.t -> float = "hdf5_h5a_read_float"
 external read_int64 : Hid.t -> Hid.t -> int64 = "hdf5_h5a_read_int64"
-external read_string : Hid.t -> Hid.t -> string -> unit = "hdf5_h5a_read"
+external read_string : Hid.t -> string = "hdf5_h5a_read_string"
 external read_string_array : Hid.t -> Hid.t -> string array -> unit
   = "hdf5_h5a_read_string_array"
 external close : Hid.t -> unit = "hdf5_h5a_close"

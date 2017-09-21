@@ -412,14 +412,9 @@ let write_attribute_string t name (v : string) =
 
 let read_attribute_string t name =
   let att = H5a.open_ (hid t) name in
-  let dataspace = H5a.get_space att in
-  let datatype = H5a.get_type att in
-  let a = Bytes.create (H5t.get_size datatype) in
-  H5a.read_string att datatype a;
-  H5t.close datatype;
-  H5s.close dataspace;
+  let s = H5a.read_string att in
   H5a.close att;
-  a
+  s
 
 let write_attribute_string_array t name (a : string array) =
   let datatype = H5t.copy H5t.c_s1 in
