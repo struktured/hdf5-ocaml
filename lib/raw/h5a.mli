@@ -41,6 +41,8 @@ external read_int64 : Hid.t -> Hid.t -> int64 = "hdf5_h5a_read_int64"
 external read_string : Hid.t -> string = "hdf5_h5a_read_string"
 external read_string_array : Hid.t -> Hid.t -> string array -> unit
   = "hdf5_h5a_read_string_array"
+external read_string_array_len : Hid.t -> int -> string array
+  = "hdf5_h5a_read_string_array_len"
 external close : Hid.t -> unit = "hdf5_h5a_close"
 external iterate : Hid.t -> ?idx_type:H5_raw.Index.t -> ?iter_order:H5_raw.Iter_order.t
   -> ?n:int ref -> 'a Iterate.t -> 'a -> H5_raw.Iter.t

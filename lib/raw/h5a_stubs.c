@@ -214,6 +214,7 @@ value hdf5_h5a_read_int64(value attr_v, value mem_type_v)
 
 value hdf5_h5a_read_string(value attr_v)
 {
+
     CAMLparam1(attr_v);
     CAMLlocal1(ret_v);
     hid_t type, ftype, att;
@@ -243,11 +244,56 @@ value hdf5_h5a_read_string(value attr_v)
       ;
 
     type = H5Tget_native_type(ftype, H5T_DIR_ASCEND);
-    ret = H5Aread(att, type, &string_attr);
+    raise_if_fail(H5Aread(att, type, &string_attr));
     ret_v = caml_copy_string(string_attr);
     free(string_attr);
     CAMLreturn(ret_v);
 }
+
+value hdf5_h5a_read_string_array_len(value attr_v, value len_v)
+{
+    CAMLparam2(attr_v, len_v);
+    CAMLlocal1(arr_v);
+
+    hid_t type, ftype, att;
+
+    int i;
+    herr_t ret;
+    char * string_attr[Int_val(len_v)];
+    H5T_class_t type_class;
+    size_t size;
+    htri_t size_var;
+
+#ifdef EIP
+    /* Create a datatype to refer to. */
+    type = H5Tcopy (H5T_C_S1);
+
+    ret = H5Tset_size (type, H5T_VARIABLE);
+#endif
+
+    att = Hid_val(attr_v);
+
+    ftype = H5Aget_type(att);
+
+    type_class = H5Tget_class (ftype);
+
+    size = H5Tget_size(ftype);
+
+    if((size_var = H5Tis_variable_str(ftype)) == 1)
+      ;
+
+    type = H5Tget_native_type(ftype, H5T_DIR_ASCEND);
+    raise_if_fail(H5Aread(att, type, &string_attr));
+
+    arr_v = caml_copy_string_array((const char **)string_attr);
+
+    for (i = 0; i < Int_val(len_v); i++) {
+      free(string_attr[i]);
+    }
+
+    CAMLreturn(arr_v);
+}
+
 
 void hdf5_h5a_read_string_array(value attr_v, value mem_type_v, value buf_v)
 {
@@ -263,6 +309,7 @@ void hdf5_h5a_read_string_array(value attr_v, value mem_type_v, value buf_v)
   }
   CAMLreturn0;
 }
+
 
 void hdf5_h5a_close(value attr_v)
 {
