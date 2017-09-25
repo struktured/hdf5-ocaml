@@ -219,29 +219,19 @@ value hdf5_h5a_read_string(value attr_v)
     CAMLlocal1(ret_v);
     hid_t type, ftype, att;
 
-    herr_t ret;
     char * string_attr;
-    H5T_class_t type_class;
-    size_t size;
-    htri_t size_var;
 
 #ifdef EIP
     /* Create a datatype to refer to. */
     type = H5Tcopy (H5T_C_S1);
 
-    ret = H5Tset_size (type, H5T_VARIABLE);
+    raise_if_fail(H5Tset_size (type, H5T_VARIABLE));
 #endif
 
     att = Hid_val(attr_v);
 
     ftype = H5Aget_type(att);
 
-    type_class = H5Tget_class (ftype);
-
-    size = H5Tget_size(ftype);
-
-    if((size_var = H5Tis_variable_str(ftype)) == 1)
-      ;
 
     type = H5Tget_native_type(ftype, H5T_DIR_ASCEND);
     raise_if_fail(H5Aread(att, type, &string_attr));
@@ -258,29 +248,19 @@ value hdf5_h5a_read_string_array_len(value attr_v, value len_v)
     hid_t type, ftype, att;
 
     int i;
-    herr_t ret;
     char * string_attr[Int_val(len_v)];
-    H5T_class_t type_class;
-    size_t size;
-    htri_t size_var;
 
 #ifdef EIP
     /* Create a datatype to refer to. */
     type = H5Tcopy (H5T_C_S1);
 
-    ret = H5Tset_size (type, H5T_VARIABLE);
+    raise_if_fail(H5Tset_size (type, H5T_VARIABLE));
 #endif
 
     att = Hid_val(attr_v);
 
     ftype = H5Aget_type(att);
 
-    type_class = H5Tget_class (ftype);
-
-    size = H5Tget_size(ftype);
-
-    if((size_var = H5Tis_variable_str(ftype)) == 1)
-      ;
 
     type = H5Tget_native_type(ftype, H5T_DIR_ASCEND);
     raise_if_fail(H5Aread(att, type, &string_attr));
