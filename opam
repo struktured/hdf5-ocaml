@@ -17,5 +17,6 @@ remove: [
   ["ocamlfind" "remove" "hdf5_raw"]
 ]
 depends: [
-  "ocamlfind" {build}
+  ["ocamlfind" {build}]
+  ["ocamlbuild" {build}]
 ]
