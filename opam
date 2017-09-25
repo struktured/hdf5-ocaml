@@ -1,0 +1,21 @@
+opam-version: "1.2"
+name: "hdf5"
+version: "dev"
+maintainer: "Carmelo Piccione <cep1@solvuu.com>"
+authors: "Carmelo Piccione <cep1@solvuu.com>"
+homepage: "https://github.com/struktured/hdf5-ocaml"
+bug-reports: "https://github.com/sturktured/hdf5-ocaml"
+license: "MIT"
+dev-repo: "https://github.com/struktured/hdf5-ocaml"
+build: [
+  ["./configure" "--prefix=%{prefix}%"]
+  [make]
+]
+install: [make "install"]
+remove: [
+  ["ocamlfind" "remove" "hdf5_caml"]
+  ["ocamlfind" "remove" "hdf5_raw"]
+]
+depends: [
+  "ocamlfind" {build}
+]
