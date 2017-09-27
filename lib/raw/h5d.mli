@@ -51,3 +51,7 @@ external write : Hid.t -> Hid.t -> Hid.t -> Hid.t -> ?xfer_plist:Hid.t -> _ -> u
   = "hdf5_h5d_write_bytecode" "hdf5_h5d_write"
 external extend : Hid.t -> Hsize.t array -> unit = "hdf5_h5d_set_extent"
 external set_extent : Hid.t -> Hsize.t array -> unit = "hdf5_h5d_set_extent"
+external read_string_matrix :
+  Hid.t -> Hid.t -> Hid.t -> int -> int ->
+  string array array = "hdf5_h5d_read_string_matrix"
+
