@@ -257,12 +257,15 @@ value hdf5_h5d_read_string_matrix(value dataset_v,
 {
     CAMLparam3(dataset_v, datatype_v, dataspace_v);
     CAMLxparam2(len_x, len_y);
-    CAMLlocal1(mat_v);
+    CAMLlocal2(mat_v, mat_i_v);
+
 
     hid_t type, ftype, dataset;
 
     int i, j;
     char * string_mat[Int_val(len_x)][Int_val(len_y)];
+
+    char * str = "";
 
 #ifdef EIP
     /* Create a datatype to refer to. */
@@ -288,17 +291,92 @@ value hdf5_h5d_read_string_matrix(value dataset_v,
     mat_v = caml_alloc(Int_val(len_x), 0);
 
     for (i = 0; i < Int_val(len_x); i++) {
-      Store_field(mat_v, i,
-          caml_copy_string_array((const char**)string_mat[i]));
+      if (string_mat[i] == NULL) {
+        continue;
+      }
+
+      mat_i_v = caml_alloc(Int_val(len_y), 0);
+
+      for (j = 0; j < Int_val(len_y);j++) {
+
+       if (string_mat[i][j] == NULL) {
+         str = "";
+       }
+       else
+         str = string_mat[i][j];
+
+        Store_field(mat_i_v, j,
+          caml_copy_string(str));
+      }
+      Store_field(mat_v, i, mat_i_v);
     }
 
     for (i = 0; i < Int_val(len_x); i++) {
+      if (string_mat[i] == NULL)
+        continue;
       for (j = 0; j < Int_val(len_y); j++) {
-        free(string_mat[i][j]);
+        if (string_mat[i][j] != NULL)
+          free(string_mat[i][j]);
       }
     }
 
     CAMLreturn(mat_v);
 }
 
+value hdf5_h5d_read_string_array(value dataset_v,
+    value datatype_v, value dataspace_v,
+    value len)
+{
+    CAMLparam3(dataset_v, datatype_v, dataspace_v);
+    CAMLxparam1(len);
+    CAMLlocal1(mat_v);
+
+    hid_t type, ftype, dataset;
+
+    int i;
+    char * string_mat[Int_val(len)];
+
+    char * str = "";
+
+#ifdef EIP
+    /* Create a datatype to refer to. */
+    type = H5Tcopy (H5T_C_S1);
+
+    raise_if_fail(H5Tset_size (type, H5T_VARIABLE));
+#endif
+
+    dataset = Hid_val(dataset_v);
+
+    ftype = Hid_val(datatype_v);
+
+    type = H5Tget_native_type(ftype, H5T_DIR_ASCEND);
+
+   raise_if_fail(H5Dread(
+    dataset,
+    type,
+    Hid_val(dataspace_v),
+    Hid_val(dataspace_v),
+    H5P_DEFAULT,
+    &string_mat));
+
+    mat_v = caml_alloc(Int_val(len), 0);
+
+    for (i = 0; i < Int_val(len); i++) {
+      if (string_mat[i] == NULL) {
+        str = "";
+      }
+      else
+         str = string_mat[i];
+
+      Store_field(mat_v, i,
+          caml_copy_string(str));
+   }
+
+    for (i = 0; i < Int_val(len); i++) {
+        if (string_mat[i] != NULL)
+          free(string_mat[i]);
+    }
+
+    CAMLreturn(mat_v);
+}
 
