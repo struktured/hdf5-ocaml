@@ -1,12 +1,12 @@
-opam-version: "1.2"
+opam-version: "1.2.2"
 name: "hdf5"
-version: "dev"
-maintainer: "Carmelo Piccione <cep1@solvuu.com>"
-authors: "Carmelo Piccione <cep1@solvuu.com>"
-homepage: "https://github.com/struktured/hdf5-ocaml"
-bug-reports: "https://github.com/sturktured/hdf5-ocaml"
+version: "0.1.4"
+maintainer: "Vladimir Brankov <vbrankov@janestreet.com>"
+authors: "Vladimir Brankov <vbrankov@janestreet.com>"
+homepage: "https://github.com/vbrankov/hdf5-ocaml"
+bug-reports: "https://github.com/vbrankov/hdf5-ocaml/issues"
 license: "MIT"
-dev-repo: "https://github.com/struktured/hdf5-ocaml"
+dev-repo: "git@github.com:vbrankov/hdf5-ocaml.git"
 build: [
   ["./configure" "--prefix=%{prefix}%"]
   [make]
@@ -18,5 +18,14 @@ remove: [
 ]
 depends: [
   "ocamlfind" {build}
-  "ocamlbuild" {build}
+  "cppo" {build}
+  "cppo_ocamlbuild" {build}
 ]
+depexts: [
+  [["alpine"] ["hdf5-dev"]]
+  [["centos"] ["epel-release" "hdf5-devel"]]
+  [["debian"] ["libhdf5-serial-dev"]]
+  [["homebrew" "osx"] ["homebrew/science/hdf5"]]
+  [["ubuntu"] ["libhdf5-serial-dev"]]
+]
+available: [ocaml-version >= "4.02"]

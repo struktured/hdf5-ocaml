@@ -33,9 +33,5 @@ module Ih_info = struct
     heap_size  : int }
 end
 
-external init : unit -> unit = "hdf5_h5_init"
-
-let init () =
-  Callback.register_exception "HDF5.H5I.Fail" H5i.Fail;
-  init ()
+let init () = Callback.register_exception "HDF5.H5I.Fail" H5i.Fail
 let () = init ()

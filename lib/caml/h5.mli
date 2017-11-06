@@ -36,7 +36,7 @@ val open_rdonly : open_
 val open_rdwr : open_
 
 (** Opens the named subgroup.  The subgroup is created if it does not already exist. *)
-val open_dir : t -> string -> t
+val open_group : t -> string -> t
 
 (** Opens the dataset with the given name. *)
 val open_dataset : t -> string -> t
@@ -45,7 +45,7 @@ val open_dataset : t -> string -> t
 val close : t -> unit
 
 (** Performs the given function on the given dir. *)
-val with_dir : t -> string -> (t -> 'a) -> 'a
+val with_group : t -> string -> (t -> 'a) -> 'a
 
 (** Flushes all buffers associated with a file to disk. *)
 val flush : t -> unit
@@ -55,6 +55,9 @@ val get_name : t -> string
 
 (** Returns whether the given subgroup or a data set exists. *)
 val exists : t -> string -> bool
+
+(** Deletes the given subgroup or a data set. *)
+val delete : t -> string -> unit
 
 (** Returns all subdirectories and data sets. *)
 val ls : ?index:H5_raw.Index.t -> ?order:H5_raw.Iter_order.t -> t -> string list
@@ -91,10 +94,8 @@ val read_uint8_array1 : t -> ?data:(char, int8_unsigned_elt, 'a) Array1.t -> str
 (** Writes the given string array to the data set. *)
 val write_string_array : t -> string -> ?deflate:int -> string array -> unit
 
-(** Reads the data set into a string array.
-    
-    @param data If provided, the storage for the data. *)
-val read_string_array : t -> ?data:string array -> string -> string array
+(** Reads the data set into a string array. *)
+val read_string_array : t -> string -> string array
 
 (** [write_attribute_int64 t name v] writes the given [int64] as an attribute with the
     given name. *)

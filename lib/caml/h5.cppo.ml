@@ -51,7 +51,7 @@ let open_rdonly = open_ H5f.open_ H5f.Acc.([ RDONLY ])
 
 let open_rdwr = open_ H5f.open_ H5f.Acc.([ CREAT; RDWR ])
 
-let open_dir t name =
+let open_group t name =
   let t = hid t in
   Group (if name = "." || H5l.exists t name then H5g.open_ t name else H5g.create t name)
 
@@ -63,8 +63,8 @@ let close = function
 | File f -> H5f.close f
 | Group g -> H5g.close g
 
-let with_dir t name f =
-  let t = open_dir t name in
+let with_group t name f =
+  let t = open_group t name in
   let r = f t in
   close t;
   r
@@ -75,6 +75,9 @@ let get_name t = H5f.get_name (hid t)
 
 let exists t name =
   H5l.exists (hid t) name
+
+let delete t name =
+  H5l.delete (hid t) name
 
 let ls ?(index = H5_raw.Index.NAME) ?(order = H5_raw.Iter_order.NATIVE) t =
   let links = ref [] in
@@ -130,7 +133,7 @@ let create_soft_link ~target_path ~link ~link_name =
 let create_external_link t ~target_file_name ~target_obj_name ~link_name =
   H5l.create_external target_file_name target_obj_name (hid t) link_name
 
-let write_data t datatype dims name ?(deflate = 6) data =
+let write_data write t datatype dims name ?(deflate = 6) data =
   let dataspace = H5s.create_simple dims in
   let dcpl =
     match deflate with
@@ -142,14 +145,14 @@ let write_data t datatype dims name ?(deflate = 6) data =
       Some dcpl
   in
   let dataset = H5d.create (hid t) name datatype ?dcpl dataspace in
-  H5d.write dataset datatype H5s.all H5s.all data;
+  write dataset datatype H5s.all H5s.all ?xfer_plist:None data;
   H5d.close dataset;
   H5s.close dataspace;
   match dcpl with
   | None -> ()
   | Some dcpl -> H5p.close dcpl
 
-let read_data expected_datatype create verify t data ?xfer_plist name =
+let read_data read expected_datatype create verify t data ?xfer_plist name =
   let hid = hid t in
   let dataset = H5d.open_ hid name in
   let datatype = H5d.get_type dataset in
@@ -161,19 +164,20 @@ let read_data expected_datatype create verify t data ?xfer_plist name =
     match data with
     | Some data -> verify data dims
     | None -> create dims in
-  H5d.read dataset datatype H5s.all H5s.all ?xfer_plist data;
+  read dataset datatype H5s.all H5s.all ?xfer_plist data;
   H5s.close dataspace;
   H5t.close datatype;
   H5d.close dataset;
   data
 
-let write_uint8_array1 t name ?deflate (a : (char, int8_unsigned_elt, _) Array1.t)
-  = write_data t H5t.native_b8 [| Array1.dim a |] name ?deflate a
+let write_uint8_array1 t name ?deflate (a : (char, int8_unsigned_elt, _) Array1.t) =
+  write_data H5d.write_bigarray t H5t.native_b8 [| Array1.dim a |] name ?deflate
+    (genarray_of_array1 a)
 
 let write_string_array t name ?deflate (a : string array) =
   let datatype = H5t.copy H5t.c_s1 in
   H5t.set_size datatype H5t.variable;
-  write_data t datatype [| Array.length a |] name ?deflate a;
+  write_data H5d.write_string_array t datatype [| Array.length a |] name ?deflate a;
   H5t.close datatype
 
 module type Float_arg = sig
@@ -186,10 +190,10 @@ end
 
 module Make_float(F : Float_arg) = struct
   let write_float_array t name ?deflate (a : float array) =
-    write_data t F.h5t [| Array.length a |] name ?deflate a
+    write_data H5d.write_float_array t F.h5t [| Array.length a |] name ?deflate a
 
   let write_float_genarray t name ?deflate (a : (float, F.float_elt, _) Genarray.t) =
-    write_data t F.h5t (Genarray.dims a) name ?deflate a
+    write_data H5d.write_bigarray t F.h5t (Genarray.dims a) name ?deflate a
 
   let write_float_array1 t name ?deflate (a : (float, F.float_elt, _) Array1.t) =
     write_float_genarray t name ?deflate (genarray_of_array1 a)
@@ -200,67 +204,75 @@ module Make_float(F : Float_arg) = struct
   let write_float_array3 t name ?deflate (a : (float, F.float_elt, _) Array3.t) =
     write_float_genarray t name ?deflate (genarray_of_array3 a)
 
-  let read_float_genarray t ?data name layout = read_data F.h5t
-    (fun dims -> Genarray.create F.kind layout dims)
-    (fun data dims ->
-      if Genarray.dims data <> dims then
-        invalid_arg "The provided storage not of adequate size and dimensions";
-      data)
-    t data name
+  let read_float_genarray t ?data name layout =
+    read_data H5d.write_bigarray F.h5t
+      (fun dims -> Genarray.create F.kind layout dims)
+      (fun data dims ->
+        if Genarray.dims data <> dims then
+          invalid_arg "The provided storage not of adequate size and dimensions";
+        data)
+      t data name
 
-  let read_float_array t ?data name = read_data F.h5t
-    (fun dims ->
-      if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
+  let read_float_array t ?data name =
+    read_data H5d.read_float_array F.h5t
+      (fun dims ->
+        if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
 #if OCAML_VERSION >= (4, 3, 0)
-      Array.create_float dims.(0))
+        Array.create_float dims.(0))
 #else
-      Array.make_float dims.(0))
+        Array.make_float dims.(0))
 #endif
-    (fun data dims ->
-      if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
-      if Array.length data < dims.(0) then
-        invalid_arg "The provided data storage too small";
-      data)
-    t data name
+      (fun data dims ->
+        if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
+        if Array.length data < dims.(0) then
+          invalid_arg "The provided data storage too small";
+        data)
+      t data name
 
-  let read_float_array1 t ?data name layout = read_data F.h5t
-    (fun dims ->
-      if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
-      Array1.create F.kind layout dims.(0))
-    (fun data dims ->
-      if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
-      if Array1.dim data < dims.(0) then
-        invalid_arg "The provided data storage too small";
-      data)
-    t data name
+  let read_float_array1 t ?data name layout =
+    read_data H5d.read_bigarray F.h5t
+      (fun dims ->
+        if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
+        genarray_of_array1 (Array1.create F.kind layout dims.(0)))
+      (fun data dims ->
+        if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
+        if Array1.dim data < dims.(0) then
+          invalid_arg "The provided data storage too small";
+        genarray_of_array1 data)
+      t data name
+    |> array1_of_genarray
 
-  let read_float_array2 t ?data name layout = read_data F.h5t
-    (fun dims ->
-      if Array.length dims <> 2 then invalid_arg "Dataset not two dimensional";
-      Array2.create F.kind layout dims.(0) dims.(1))
-    (fun data dims ->
-      if Array.length dims <> 2 then invalid_arg "Dataset not two dimensional";
-      if Array2.dim1 data < dims.(0) then
-        invalid_arg "The provided data storage too small";
-        if Array2.dim2 data <> dims.(1) then
-        invalid_arg "Dim1 of the provided data has wrong size";
-      data)
-    t data name
+  let read_float_array2 t ?data name layout =
+    read_data H5d.read_bigarray F.h5t
+      (fun dims ->
+        if Array.length dims <> 2 then invalid_arg "Dataset not two dimensional";
+        genarray_of_array2 (Array2.create F.kind layout dims.(0) dims.(1)))
+      (fun data dims ->
+        if Array.length dims <> 2 then invalid_arg "Dataset not two dimensional";
+        if Array2.dim1 data < dims.(0) then
+          invalid_arg "The provided data storage too small";
+          if Array2.dim2 data <> dims.(1) then
+          invalid_arg "Dim1 of the provided data has wrong size";
+        genarray_of_array2 data)
+      t data name
+    |> array2_of_genarray
 
-  let read_float_array3 t ?data name layout = read_data F.h5t
-    (fun dims ->
-      if Array.length dims <> 3 then invalid_arg "Dataset not three dimensional";
-      Array3.create F.kind layout dims.(0) dims.(1) dims.(2))
-    (fun data dims ->
-      if Array.length dims <> 3 then invalid_arg "Dataset not three dimensional";
-      if Array3.dim1 data < dims.(0) then
-        invalid_arg "The provided data storage too small";
-      if Array3.dim2 data <> dims.(1) then
-        invalid_arg "Dim2 of the provided data has wrong size";
-      if Array3.dim3 data <> dims.(2) then
-        invalid_arg "Dim3 of the provided data has wrong size";
-      data)
-    t data name
+  let read_float_array3 t ?data name layout =
+    read_data H5d.read_bigarray F.h5t
+      (fun dims ->
+        if Array.length dims <> 3 then invalid_arg "Dataset not three dimensional";
+        genarray_of_array3 (Array3.create F.kind layout dims.(0) dims.(1) dims.(2)))
+      (fun data dims ->
+        if Array.length dims <> 3 then invalid_arg "Dataset not three dimensional";
+        if Array3.dim1 data < dims.(0) then
+          invalid_arg "The provided data storage too small";
+        if Array3.dim2 data <> dims.(1) then
+          invalid_arg "Dim2 of the provided data has wrong size";
+        if Array3.dim3 data <> dims.(2) then
+          invalid_arg "Dim3 of the provided data has wrong size";
+        genarray_of_array3 data)
+      t data name
+    |> array3_of_genarray
 
   let write_float_array_array t name ?(transpose = true) ?deflate (a : float array array) =
     let dim1 = Array.length a in
@@ -322,10 +334,10 @@ module Make_float(F : Float_arg) = struct
         e)
     end
 
-  let write_attribute_float t name (v : float) =
+  let write_attribute_float t name v =
     let dataspace = H5s.create H5s.Class.SCALAR in
     let att = H5a.create (hid t) name F.h5t dataspace in
-    H5a.write att F.h5t v;
+    H5a.write_float att F.h5t v;
     H5a.close att;
     H5s.close dataspace
 
@@ -338,6 +350,29 @@ module Make_float(F : Float_arg) = struct
     H5s.close dataspace;
     H5a.close att;
     f
+
+  let write_attribute_float_array t name v =
+    let dataspace = H5s.create_simple [| Array.length v |] in
+    let att = H5a.create (hid t) name F.h5t dataspace in
+    H5a.write_float_array att F.h5t v;
+    H5a.close att;
+    H5s.close dataspace
+
+  let read_attribute_float_array t name =
+    let att = H5a.open_ (hid t) name in
+    let dataspace = H5a.get_space att in
+    let datatype = H5a.get_type att in
+    let dims, _ = H5s.get_simple_extent_dims dataspace in
+#if OCAML_VERSION >= (4, 3, 0)
+    let a = Array.create_float dims.(0) in
+#else
+    let a = Array.make_float dims.(0) in
+#endif
+    H5a.read_float_array att datatype a;
+    H5t.close datatype;
+    H5s.close dataspace;
+    H5a.close att;
+    a
 end
 
 module Float32 = Make_float(struct
@@ -354,39 +389,38 @@ end)
 
 include Float64
 
-let read_uint8_array1 t ?data name layout = read_data H5t.native_b8
-  (fun dims ->
-    if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
-    Array1.create Char layout dims.(0))
-  (fun data dims ->
-    if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
-    if Array1.dim data < dims.(0) then
-      invalid_arg "The provided data storage too small";
-    data)
-  t data name
-
-let read_string_array t ?data name =
-  let datatype = H5t.copy H5t.c_s1 in
-  H5t.set_size datatype H5t.variable;
-  let xfer_plist = H5p.create H5p.Cls_id.DATASET_XFER in
-  H5p.set_vlen_mem_manager xfer_plist (fun i -> Bytes.create (i - 1)) ignore;
-  let data = read_data datatype
+let read_uint8_array1 t ?data name layout =
+  read_data H5d.read_bigarray H5t.native_b8
     (fun dims ->
       if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
-      Array.make dims.(0) "")
+      genarray_of_array1 (Array1.create Char layout dims.(0)))
     (fun data dims ->
       if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
-      if Array.length data < dims.(0) then
+      if Array1.dim data < dims.(0) then
         invalid_arg "The provided data storage too small";
-      data) t data ~xfer_plist name in
-  H5p.close xfer_plist;
-  H5t.close datatype;
-  data
+      genarray_of_array1 data)
+    t data name
+  |> array1_of_genarray
 
-let write_attribute_int64 t name (v : int64) =
+let read_string_array t name =
+  let datatype = H5t.copy H5t.c_s1 in
+  H5t.set_size datatype H5t.variable;
+
+  let data = read_data H5d.read_c_string_array datatype
+    (fun dims ->
+      if Array.length dims <> 1 then invalid_arg "Dataset not one dimensional";
+      Array.make dims.(0) H5d.C_string.null)
+    (fun _ _ -> assert false) t None name in
+  H5t.close datatype;
+  Array.map (fun cs ->
+    let s = H5d.C_string.to_string cs in
+    H5d.C_string.free cs;
+    s) data
+
+let write_attribute_int64 t name v =
   let dataspace = H5s.create H5s.Class.SCALAR in
   let att = H5a.create (hid t) name H5t.native_int64 dataspace in
-  H5a.write att H5t.native_int64 (Obj.magic v + 4);
+  H5a.write_int64 att H5t.native_int64 v;
   H5a.close att;
   H5s.close dataspace
 
@@ -400,28 +434,28 @@ let read_attribute_int64 t name =
   H5a.close att;
   i
 
-let write_attribute_string t name (v : string) =
+let write_attribute_string t name v =
   let datatype = H5t.copy H5t.c_s1 in
   H5t.set_size datatype (String.length v);
   let dataspace = H5s.create H5s.Class.SCALAR in
   let att = H5a.create (hid t) name datatype dataspace in
-  H5a.write att datatype v;
+  H5a.write_string att datatype v;
   H5a.close att;
   H5s.close dataspace;
   H5t.close datatype
 
 let read_attribute_string t name =
   let att = H5a.open_ (hid t) name in
-  let s = H5a.read_string att in
+  let s = H5a.get_string att in
   H5a.close att;
   s
 
-let write_attribute_string_array t name (a : string array) =
+let write_attribute_string_array t name a =
   let datatype = H5t.copy H5t.c_s1 in
-  H5t.set_size datatype H5t.variable; 
+  H5t.set_size datatype H5t.variable;
   let dataspace = H5s.create_simple [| Array.length a |] in
   let att = H5a.create (hid t) name datatype dataspace in
-  H5a.write att datatype a;
+  H5a.write_string_array att datatype a;
   H5a.close att;
   H5s.close dataspace;
   H5t.close datatype
