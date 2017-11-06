@@ -302,6 +302,16 @@ void hdf5_h5d_set_extent(value dset_v, value size_v)
 }
 
 
+
+void hdf5_h5d_vlen_reclaim(value type_v, value space_v, value plist_v, value buf_v)
+{
+ CAMLparam4(type_v, space_v, plist_v, buf_v);
+ raise_if_fail(
+   H5Dvlen_reclaim(Hid_val(type_v), Hid_val(space_v),
+     Hid_val(plist_v), (void*) buf_v));
+  CAMLreturn0;
+}
+
 value hdf5_h5d_read_string_matrix(value dataset_v,
     value datatype_v, value dataspace_v,
     value len_x, value len_y)
