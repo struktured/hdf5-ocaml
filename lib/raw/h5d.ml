@@ -62,6 +62,8 @@ external read_float_array : Hid.t -> Hid.t -> Hid.t -> Hid.t -> ?xfer_plist:Hid.
   -> float array -> unit = "hdf5_h5d_read_bytecode" "hdf5_h5d_read"
 external read_c_string_array : Hid.t -> Hid.t -> Hid.t -> Hid.t -> ?xfer_plist:Hid.t
   -> C_string.t array -> unit = "hdf5_h5d_read_bytecode" "hdf5_h5d_read"
+external read_c_string_matrix : Hid.t -> Hid.t -> Hid.t -> Hid.t -> ?xfer_plist:Hid.t
+  -> C_string.t array array -> unit = "hdf5_h5d_read_bytecode" "hdf5_h5d_read"
 external read_bigarray : Hid.t -> Hid.t -> Hid.t -> Hid.t -> ?xfer_plist:Hid.t
   -> _ Genarray.t -> unit = "hdf5_h5d_read_bigarray_bytecode" "hdf5_h5d_read_bigarray"
 external write_string : Hid.t -> Hid.t -> Hid.t -> Hid.t -> ?xfer_plist:Hid.t
